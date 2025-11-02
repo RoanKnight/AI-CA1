@@ -6,6 +6,8 @@ import joblib
 import pandas as pd
 import numpy as np
 
+from Insurance import build_feature_matrix
+
 def main():
   parser = argparse.ArgumentParser(
       description="Predict insurance charges from personal information")
@@ -33,43 +35,36 @@ def main():
     print(f"Failed to load model: {e}", file=sys.stderr)
     sys.exit(1)
 
-  # Create engineered features
-  bmi_children = args.bmi * args.children
-  age_children = args.age * args.children
-
-  # Create BMI category
-  if args.bmi < 18.5:
-    bmi_category = 'underweight'
-  elif args.bmi < 25:
-    bmi_category = 'normal'
-  elif args.bmi < 30:
-    bmi_category = 'overweight'
-  elif args.bmi < 35:
-    bmi_category = 'obese'
-  else:
-    bmi_category = 'morbid_obese'
-
-  # Create region_smoker feature
-  region_smoker = f"{args.region}_{args.smoker}"
-
-  # Create feature DataFrame with engineered features
-  X = pd.DataFrame({
+  # Create raw feature DataFrame with charges column
+  raw_df = pd.DataFrame({
       "age": [args.age],
       "sex": [args.sex],
       "bmi": [args.bmi],
       "children": [args.children],
       "smoker": [args.smoker],
       "region": [args.region],
-      "bmi_children": [bmi_children],
-      "age_children": [age_children],
-      "bmi_category": [bmi_category],
-      "region_smoker": [region_smoker]
+      "charges": [0]
   })
+
+  # Use the function from Insurance.py to build features
+  X, _ = build_feature_matrix(raw_df)
 
   # Predict
   try:
     prediction_log = model.predict(X)[0]
     prediction = np.exp(prediction_log)
+
+    # Determine BMI category for display
+    if args.bmi < 18.5:
+      bmi_category = 'underweight'
+    elif args.bmi < 25:
+      bmi_category = 'normal'
+    elif args.bmi < 30:
+      bmi_category = 'overweight'
+    elif args.bmi < 35:
+      bmi_category = 'obese'
+    else:
+      bmi_category = 'morbid_obese'
 
     print(f"\nPredicted insurance charges: ${prediction:.2f}")
     print(f"\nInput Summary:")

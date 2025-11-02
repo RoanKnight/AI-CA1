@@ -5,7 +5,7 @@ import joblib
 
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, confusion_matrix, ConfusionMatrixDisplay, precision_recall_curve, roc_curve
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, precision_recall_curve, precision_score, recall_score
 from sklearn.inspection import permutation_importance
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
@@ -126,26 +126,24 @@ def main():
   # Find optimal threshold for better F1
   precision, recall, thresholds_pr = precision_recall_curve(
       y_test, y_pred_proba)
-  f1_scores = 2 * (precision * recall) / (precision + recall + 1e-10)
+  f1_scores = 2 * (precision[:-1] * recall[:-1]) / \
+      (precision[:-1] + recall[:-1] + 1e-10)
   best_f1_idx = f1_scores.argmax()
   best_threshold_f1 = thresholds_pr[best_f1_idx]
+  best_precision = precision[:-1][best_f1_idx]
+  best_recall = recall[:-1][best_f1_idx]
   print(
       f"\nBest threshold for F1: {best_threshold_f1:.3f} (F1: {f1_scores[best_f1_idx]:.3f})")
-
-  # Use ROC curve for Youden's J statistic
-  fpr, tpr, thresholds_roc = roc_curve(y_test, y_pred_proba)
-  j_scores = tpr - fpr
-  best_j_idx = j_scores.argmax()
-  best_threshold_roc = thresholds_roc[best_j_idx]
-  print(
-      f"Best threshold for Youden's J: {best_threshold_roc:.3f} (J: {j_scores[best_j_idx]:.3f})")
 
   # Apply best F1 threshold and recompute metrics
   y_pred_opt = (y_pred_proba >= best_threshold_f1).astype(int)
   f1_opt = f1_score(y_test, y_pred_opt)
   acc_opt = accuracy_score(y_test, y_pred_opt)
+  prec_opt = precision_score(y_test, y_pred_opt)
+  rec_opt = recall_score(y_test, y_pred_opt)
   print(f"\nOptimized (Best F1 Threshold):")
   print(f"  Accuracy: {acc_opt:.3f}, F1: {f1_opt:.3f}, ROC AUC: {roc_auc:.3f}")
+  print(f"  Precision: {prec_opt:.3f}, Recall: {rec_opt:.3f}")
 
   # Persist best model
   joblib.dump(best_model, 'bank_model.pkl')
@@ -173,6 +171,19 @@ def main():
   print("\nTop 10 Feature Importances (Permutation, F1 Impact):")
   print(importance_df.head(10))
 
+  # Plot precision-recall curve with best F1 threshold highlighted
+  plt.figure(figsize=(8, 6))
+  plt.plot(recall, precision, label='Precision-Recall Curve')
+  plt.scatter(best_recall, best_precision, color='red',
+                          label=f'Best F1 Threshold = {best_threshold_f1:.3f}')
+  plt.xlabel('Recall')
+  plt.ylabel('Precision')
+  plt.title('Precision-Recall Curve (Test Set)')
+  plt.legend(loc='lower left')
+  plt.grid(alpha=0.3, linestyle='--')
+  plt.tight_layout()
+  plt.show()
+
   # Plot feature importance
   plt.figure(figsize=(10, 6))
   plt.barh(importance_df['Feature'][:10], importance_df['Importance']
@@ -180,15 +191,6 @@ def main():
   plt.xlabel('Permutation Importance (F1 Score Impact)')
   plt.title('Top 10 Feature Importances')
   plt.gca().invert_yaxis()
-  plt.tight_layout()
-  plt.show()
-
-  # Plot confusion matrix
-  cm = confusion_matrix(y_test, y_pred_opt)
-  disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[
-                                'No Deposit', 'Deposit'])
-  disp.plot(cmap=plt.cm.Blues)
-  plt.title(f'Confusion Matrix (Threshold: {best_threshold_f1:.3f})')
   plt.tight_layout()
   plt.show()
 

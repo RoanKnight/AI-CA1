@@ -25,8 +25,7 @@ def build_feature_matrix(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
   feature_engineered_df['region_smoker'] = feature_engineered_df['region'] + \
       '_' + feature_engineered_df['smoker']
 
-  X = pd.get_dummies(feature_engineered_df.drop(
-      'charges', axis=1), drop_first=True)
+  X = feature_engineered_df.drop('charges', axis=1)
   y = feature_engineered_df['charges']
 
   return X, y
@@ -35,20 +34,7 @@ def main():
   insurance = pd.read_csv('DataFiles/insurance.csv')
 
   # Get engineered features
-  feature_engineered_df = insurance.copy()
-  feature_engineered_df['bmi_children'] = feature_engineered_df['bmi'] * \
-      feature_engineered_df['children']
-  feature_engineered_df['age_children'] = feature_engineered_df['age'] * \
-      feature_engineered_df['children']
-  feature_engineered_df['bmi_category'] = pd.cut(
-      feature_engineered_df['bmi'], bins=[0, 18.5, 25, 30, 35, np.inf],
-      labels=['underweight', 'normal', 'overweight', 'obese', 'morbid_obese']
-  )
-  feature_engineered_df['region_smoker'] = feature_engineered_df['region'] + \
-      '_' + feature_engineered_df['smoker']
-
-  X = feature_engineered_df.drop('charges', axis=1)
-  y = feature_engineered_df['charges']
+  X, y = build_feature_matrix(insurance)
 
   # Identify numeric and categorical columns
   numeric_cols = X.select_dtypes(include=[np.number]).columns.tolist()

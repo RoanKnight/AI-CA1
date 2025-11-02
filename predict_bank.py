@@ -6,6 +6,8 @@ import joblib
 import pandas as pd
 import numpy as np
 
+from Bank import build_feature_matrix
+
 def main():
   parser = argparse.ArgumentParser(
       description="Predict bank deposit from customer information")
@@ -49,53 +51,16 @@ def main():
     print(f"Failed to load model: {e}", file=sys.stderr)
     sys.exit(1)
 
-  # Create engineered features
-  age_balance = args.age * args.balance
-  duration_campaign = args.duration * args.campaign
-
-  # Create balance category
-  if args.balance < 0:
-    balance_category = 'negative'
-  elif args.balance < 500:
-    balance_category = 'low'
-  elif args.balance < 1000:
-    balance_category = 'medium'
-  elif args.balance < 2000:
-    balance_category = 'high'
-  else:
-    balance_category = 'very_high'
-
-  # Create age category
-  if args.age <= 30:
-    age_category = 'young'
-  elif args.age <= 45:
-    age_category = 'middle'
-  elif args.age <= 60:
-    age_category = 'senior'
-  else:
-    age_category = 'elder'
-
-  # Create job_marital feature
-  job_marital = f"{args.job}_{args.marital}"
-
-  # Create balance_log
-  balance_log = np.log1p(max(0, args.balance))
-
-  # Convert binary to numeric (matching training preprocessing)
-  default_num = 1 if args.default == 'yes' else 0
-  housing_num = 1 if args.housing == 'yes' else 0
-  loan_num = 1 if args.loan == 'yes' else 0
-
-  # Create feature DataFrame with all features
-  X = pd.DataFrame({
+  # Create raw feature DataFrame with deposit column
+  raw_df = pd.DataFrame({
       "age": [args.age],
       "job": [args.job],
       "marital": [args.marital],
       "education": [args.education],
-      "default": [default_num],
+      "default": [args.default],
       "balance": [args.balance],
-      "housing": [housing_num],
-      "loan": [loan_num],
+      "housing": [args.housing],
+      "loan": [args.loan],
       "contact": [args.contact],
       "day": [args.day],
       "month": [args.month],
@@ -104,13 +69,11 @@ def main():
       "pdays": [args.pdays],
       "previous": [args.previous],
       "poutcome": [args.poutcome],
-      "age_balance": [age_balance],
-      "duration_campaign": [duration_campaign],
-      "balance_category": [balance_category],
-      "job_marital": [job_marital],
-      "age_category": [age_category],
-      "balance_log": [balance_log]
+      "deposit": ["no"]
   })
+
+  # Use the function from Bank.py to build features
+  X, _ = build_feature_matrix(raw_df)
 
   # Predict
   try:
@@ -125,11 +88,11 @@ def main():
     print(f"  Deposit: {prediction_proba[1]:.1%}")
 
     print(f"\nInput Summary:")
-    print(f"  Age: {args.age} years ({age_category})")
+    print(f"  Age: {args.age} years")
     print(f"  Job: {args.job}")
     print(f"  Marital: {args.marital}")
     print(f"  Education: {args.education}")
-    print(f"  Balance: ${args.balance:.2f} ({balance_category})")
+    print(f"  Balance: ${args.balance:.2f}")
     print(f"  Housing Loan: {args.housing}")
     print(f"  Personal Loan: {args.loan}")
     print(f"  Last Contact Duration: {args.duration} seconds")
